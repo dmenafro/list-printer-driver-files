@@ -1,16 +1,33 @@
 # the purpose of this script is to list all printers, their drivers, and the files associated with the driver.
 
-$servername = "name of server you want to collect information on"
-$outputpath = "folder you want the results file to go to\driver.dependencies.csv"
-Param ([string]$PrintServer = $servername)
+# Define what you want the script to run against
+[string]$PrintServer = "localhost OR servername"
 
-$Results = ForEach ($Driver in (Get-WmiObject Win32_PrinterDriver -ComputerName $PrintServer))
-{   $Drive = $Driver.DriverPath.Substring(0,1)    
-    New-Object PSObject -Property @{
-        Name = $Driver.Name
-        Version = (Get-ItemProperty ($Driver.DriverPath.Replace("$Drive`:","\\$PrintServer\$Drive`$"))).VersionInfo.ProductVersion
-        Path = $Driver.DriverPath
-        DF = $Driver.DependentFiles -join ', '
-    }​​​​​​​​​​​​​​
-}​​​​​​​​​​​​​​​​​​​​​
-$Results | export-csv -Path $outputpath
+# Define where you want the output to reside
+$outputpath = "c:\temp\driver.dependencies.csv"
+
+# Array for the result data
+$results = @()
+
+# Loop through all the printer drivers on the target system
+ForEach ($Driver in (Get-WmiObject Win32_PrinterDriver -ComputerName $PrintServer))
+{   
+    
+    # Find the drive letter the files reside on
+    $Drive = $Driver.DriverPath.Substring(0,1)    
+        
+        # Create a new object to populate with data
+        $CustomObject = [PSCustomObject] @{
+            DriverName = $Driver.Name
+            Version = (Get-ItemProperty ($Driver.DriverPath.Replace("$Drive`:","\\$PrintServer\$Drive`$"))).VersionInfo.ProductVersion
+            Path = $Driver.DriverPath
+            DriverFiles = ($Driver.DependentFiles -join ', ')
+        }#EndCustomObject
+
+    # Update array with collected data
+    $results += $CustomObject
+
+}#EndLoop
+
+# Export result data to file​​​​​​
+$Results | export-csv -Path $outputpath -NoTypeInformation
